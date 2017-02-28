@@ -8,6 +8,10 @@ const rp = require('request-promise');
 const login = require('../util/login');
 const recordUtils = require('../util/generate_record.js');
 const requestBodyUtils = require('../util/sync_request_bodies');
+const makeUser = require('../util/fixtures/makeUser');
+const makeWorkorder = require('../util/fixtures/makeWorkorder');
+const createUserAndGroup = require('../util/createUserAndGroup');
+
 const argv = require('yargs')
       .reset()
       .option('app', {
@@ -42,21 +46,6 @@ const argv = require('yargs')
       })
       .argv;
 
-function makeUser(id) {
-  return {
-    "password": "123",
-    "name" : "Jim Loader",
-    "phone" : "(999) 999 9999",
-    "username" : `loaduser${id}`,
-    "group": "Syl1GdSS", // Drivers
-    "position" : "Senior Load Tester",
-    "email" : `loaduser${id}@example.com`,
-    "notes" : "There certainly are a lot of Jim's around here...",
-    "banner" : "https://www.walldevil.com/wallpapers/w01/awesome-face-meme-wallpaper.jpg",
-    "avatar" : "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/718smiley.svg/2000px-718smiley.svg.png"
-  };
-}
-
 function postUsers(sessionToken, numUsers, concurrency) {
   const users = _.times(numUsers, makeUser);
   const sessionRequest = rp.defaults({
@@ -67,22 +56,15 @@ function postUsers(sessionToken, numUsers, concurrency) {
   process.stdout.write(`Creating users at a concurrency of ${concurrency}`);
   return Promise.map(users, user => {
     process.stdout.write('.');
-    return sessionRequest.post({
-      url: `${argv.app}/api/wfm/user`,
-      body: user
-    })
-      .then(createdUser => sessionRequest.post({
-        url: `${argv.app}/api/wfm/membership`,
-        body: {group: createdUser.group, user: createdUser.id}
-      }));
+    return createUserAndGroup(sessionRequest, argv.app, user);
   }, {concurrency: concurrency}) // concurrency of users to process
-    .then(membershipResultsArray => {
+    .then(users => {
       console.log('done!');
       return {
         sessionRequest: sessionRequest,
-        users: membershipResultsArray.map(res => res.user)
+        users: _.map(users, 'id')
       };
-    });
+    }).catch(console.error);
 }
 
 function initialSync(previousResolution) {
@@ -113,22 +95,8 @@ function makeWorkorderRecords(previousResolution) {
   const serverHash = previousResolution.serverHash;
   const sessionRequest = previousResolution.sessionRequest;
 
-  const records = users.map(user => recordUtils.generateRecord({
-    assignee: user,
-    title: `Load test workorder for ${user}`,
-    type: "Job Order",
-    status: "New",
-    workflowId: "HJ8QkzOSH",
-    address: "The Moon, Earth Orbit",
-    location: {
-      "0": 4,
-      "1": 4
-    },
-    finishDate: "2029-02-23T00:00:00Z",
-    finishTime: "2029-02-23T00:00:00Z",
-    summary: "Do the work",
-    startTimestamp: "2017-02-23T00:00:00Z"
-  }));
+  const records = users.map(user =>
+    recordUtils.generateRecord(makeWorkorder(user)));
 
   return {
     records: records,

@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Load-runner scripts to test the demo cloud app",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "setup": "node setup/usersWorkorders.js"
+    "setup": "node setup/usersWorkorders.js",
+    "local": "node ./scripts/sync-workflow -a http://localhost:8001 -u trever -p 123"
   },
   "repository": {
     "type": "git",

@@ -1,13 +1,13 @@
+#!/usr/bin/env node
 'use strict';
 
 const crypto = require('crypto');
 const lr = require('load-runner')();
 const Promise = require('bluebird');
-const rp = require('request-promise');
-
-const login = require('../util/login');
+const configureRequest = require('../util/configureRequest');
 const requestBodyUtils = require('../util/sync_request_bodies');
 const clientIdentifier = `${crypto.randomBytes(16).toString('hex')}_${Date.now()}`;
+const login = require('../util/login');
 
 const argv = require('yargs')
       .reset()
@@ -30,27 +30,6 @@ const argv = require('yargs')
         describe: 'Password to use to login to the app'
       })
       .argv;
-
-/**
- * Configures defaults in a custom request-promise instance
- *
- * @param {string} clientIdentifier
- * @param {string} sessionToken
- * @returns {object} a request-promise instance
- */
-function configureRequest(clientIdentifier, sessionToken) {
-  const optionalHeaders = {
-    'X-FH-cuid': clientIdentifier
-  };
-
-  if (sessionToken) {
-    optionalHeaders['X-FH-sessionToken'] = sessionToken;
-  }
-
-  return rp.defaults({
-    headers: requestBodyUtils.getSyncRequestHeaders(optionalHeaders)
-  });
-}
 
 /**
  * Test step: logout / revoke session
@@ -114,54 +93,10 @@ function initialSync(sessionToken) {
   });
 }
 
-/**
- * Test step: SyncRecords request to get the data from the server
- * @param {object} previousResolution - contains session token and dataset hash
- * @returns {promise} A promise that resolves with an object
- * containing session token and dataset hash
- */
-function syncRecords(previousResolution) {
-  const sessionToken = previousResolution.sessionToken;
-  const serverHash = previousResolution.serverHash;
-  const fhRequest = configureRequest(clientIdentifier, sessionToken);
-  const reqBody = requestBodyUtils.getSyncRecordsRequestBody({
-    dataset_id: 'workorders',
-    query_params: {
-      "filter": {
-        "key": "assignee",
-        "value": "rkX1fdSH"
-      }
-    },
-    dataset_hash: serverHash,
-    meta_data: {
-      clientIdentifier: clientIdentifier
-    },
-    pending: []
-  });
-
-  return new Promise(resolve => {
-    lr.actStart('Sync Records');
-    return fhRequest.post({
-      url: `${argv.app}/mbaas/sync/workorders`,
-      body: reqBody,
-      json: true
-    }).then(resBody => {
-      lr.actEnd('Sync Records');
-
-      const resolution = {
-        sessionToken: sessionToken,
-        serverHash: resBody.hash
-      };
-      return resolve(resolution);
-    });
-  });
-}
-
-
 // Execution starts here
 login(lr, configureRequest(clientIdentifier), argv.app, argv.username, argv.password)
   .then(initialSync)
-  .then(syncRecords)
-  .then(logout)
+  .then(require('./portal-flow')(lr, argv))
+  //.then(logout)
   .then(() => lr.finish('ok'))
   .catch(() => lr.finish('failed'));

@@ -63,12 +63,11 @@ function sortObject(toSort) {
 
   const sortedPairs = [];
 
-  Object.keys(toSort).sort().forEach(function(key) {
+  Object.keys(toSort).sort().forEach(key =>
     sortedPairs.push({
       key: key,
       value: sortObject(toSort[key])
-    });
-  });
+    }));
 
   return sortedPairs;
 }
