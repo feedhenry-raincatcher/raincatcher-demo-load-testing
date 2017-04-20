@@ -14,6 +14,7 @@ const makeSyncBody = require('../util/fixtures/makeSyncBody');
 const createUserAndGroup = require('../util/createUserAndGroup');
 const promiseAct = require('../util/promiseAct');
 const acknowledge = require('../util/acknowledge.js');
+const recordUtils = require('../util/generate_record');
 
 module.exports = function portalFlow(runner, argv, clientId) {
   return function portalFlowAct(sessionToken) {
@@ -53,15 +54,30 @@ module.exports = function portalFlow(runner, argv, clientId) {
       Promise.resolve(hashes),
       Promise.resolve(clientRecs),
       act('Portal: create user and group', () => createUserAndGroup(request, baseUrl, makeUser(`-portalflow${process.env.LR_RUN_NUMBER}`))),
-      act('Portal: create workflow', () => create('workflows', makeWorkflow(process.env.LR_RUN_NUMBER), null, hashes.workflows, {}, [], 'create'))
-        .then(res => doAcknowledge('workflows', clientRecs[datasets.indexOf('workflows')], res))
+      act('Portal: create workflow', () => {
+        const workflow = makeWorkflow(process.env.LR_RUN_NUMBER);
+        const pending = [recordUtils.generateRecord(workflow, null, {}, 'create')];
+        const payload = makeSyncBody('workflows', clientId, hashes.workflows, {}, pending, []);
+        return create('workflows', hashes.workflows, payload, {}, [])
+          .then(res => doAcknowledge('workflows', clientRecs[datasets.indexOf('workflows')], res, pending[0].hash));
+      })
     ]))
 
       .spread((hashes, clientRecs, user, workflowCreationResult) => Promise.all([
-        act('Portal: create workorder', () => create('workorders', makeWorkorder(String(user.id), String(_.get(workflowCreationResult[1], 'data.id', process.env.LR_RUN_NUMBER))), null, hashes.workorders, {}, [], 'create'))
-          .then(res => doAcknowledge('workorders', clientRecs[datasets.indexOf('workorders')], res)),
-        act('Portal: create message', () => create('messages', makeMessage(user), null, hashes.messages, {}, [], 'create'))
-          .then(res => doAcknowledge('messages', clientRecs[datasets.indexOf('messages')], res))
+        act('Portal: create workorder', () => {
+          const workorder = makeWorkorder(String(user.id), String(_.get(workflowCreationResult[1], 'data.id', process.env.LR_RUN_NUMBER)));
+          const pending = [recordUtils.generateRecord(workorder, null, {}, 'create')];
+          const payload = makeSyncBody('workorders', clientId, hashes.workorders, {}, pending, []);
+          return create('workorders', hashes.workorders, payload, {}, [])
+            .then(res => doAcknowledge('workorders', clientRecs[datasets.indexOf('workorders')], res, pending[0].hash));
+        }),
+        act('Portal: create message', () => {
+          const message = makeMessage(user);
+          const pending = [recordUtils.generateRecord(message, null, {}, 'create')];
+          const payload = makeSyncBody('messages', clientId, hashes.messages, {}, pending, []);
+          return create('messages', hashes.messages, payload, {}, [])
+            .then(res => doAcknowledge('messages', clientRecs[datasets.indexOf('messages')], res, pending[0].hash));
+        })
       ]))
 
       .then(() => runner.actEnd('Portal Flow'))

@@ -6,8 +6,9 @@ const sync = require('./sync');
 const Promise = require('bluebird');
 const _ = require('lodash');
 
-function isApplied(hash, syncResult) {
-  return _.find(_.get(syncResult, 'updates.applied', {}), {'hash': hash}) || false;
+function isApplied(recordHash, syncResult, oldDatasetHash) {
+  return oldDatasetHash !== syncResult.hash &&
+    _.find(_.get(syncResult, 'updates.applied', {}), {'hash': recordHash}) || false;
 }
 
 function syncLoop(mainFn, compareFn, interval, initialSyncResult) {
@@ -15,7 +16,7 @@ function syncLoop(mainFn, compareFn, interval, initialSyncResult) {
 
     function next(previousResult) {
       return mainFn(previousResult).then(result => {
-        if (compareFn(result)) {
+        if (compareFn(result, previousResult.hash)) {
           return resolve(result);
         } else {
           return Promise.delay(interval).then(() => next(result));
@@ -29,10 +30,7 @@ function syncLoop(mainFn, compareFn, interval, initialSyncResult) {
     .timeout(300000);
 }
 
-module.exports = function createRecord(baseUrl, request, clientId, dataset, postData, preDataAndHash, dataset_hash, query_params, acknowledgements, action) {
-
-  const pending = [recordUtils.generateRecord(postData, preDataAndHash, {}, action)];
-  const payload = makeSyncBody(dataset, clientId, dataset_hash, query_params, pending, acknowledgements);
+module.exports = function createRecord(baseUrl, request, clientId, dataset, dataset_hash, payload, query_params, acknowledgements) {
 
   // This just partially applies sync so that it can be passed to the sync loop in the `.then` below
   const syncp = sync.bind(null, request, `${baseUrl}/mbaas/sync/${dataset}`, makeSyncBody(dataset, clientId, dataset_hash, query_params, null, acknowledgements));

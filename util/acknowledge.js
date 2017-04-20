@@ -3,14 +3,14 @@
 const _ = require('lodash');
 const Promise = require('bluebird');
 
-function getCreatedRecord(syncResponse, syncRecordsResponse) {
+function getCreatedRecord(expectedHash, syncResponse, syncRecordsResponse) {
   const newAndUpdated = _.merge(_.get(syncRecordsResponse, 'res.create', {}),
                                 _.get(syncRecordsResponse, 'res.update', {}));
-
-  return _.find(newAndUpdated, r => r.data.id === _.map(syncResponse.updates.applied, a => a.uid)[0]);
+  const expectedUid = _.get(_.find(syncResponse.updates.applied, {'hash': expectedHash}), 'uid');
+  return _.find(newAndUpdated, r => r.data.id === expectedUid);
 }
 
-module.exports = function acknowledge(sync, syncRecords, makeSyncBody, baseUrl, clientId, datasets, dataset, incomingClientRecs, incomingSyncResponse) {
+module.exports = function acknowledge(sync, syncRecords, makeSyncBody, baseUrl, clientId, datasets, dataset, incomingClientRecs, incomingSyncResponse, expectedHash) {
 
   const datasetUrl = `${baseUrl}/mbaas/sync/${dataset}`;
 
@@ -18,7 +18,7 @@ module.exports = function acknowledge(sync, syncRecords, makeSyncBody, baseUrl, 
 
     .then(syncRecordsResponse => Promise.all([
       Promise.resolve(incomingSyncResponse),
-      Promise.resolve(getCreatedRecord(incomingSyncResponse, syncRecordsResponse)),
+      Promise.resolve(getCreatedRecord(expectedHash, incomingSyncResponse, syncRecordsResponse)),
       Promise.resolve(syncRecordsResponse.clientRecs)
     ]))
 
