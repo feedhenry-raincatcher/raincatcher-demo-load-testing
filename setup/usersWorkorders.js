@@ -134,7 +134,8 @@ function run() {
     .then(makeWorkorderRecords)
     .then(res => batchWorkorderRecords(res, argv.concurrency))
     .then(sendWorkorderSyncRequests)
-    .catch(console.err);
+    .then(() => Promise.delay(10000))
+    .catch(console.error);
 }
 
 // https://nodejs.org/docs/latest/api/all.html#modules_accessing_the_main_module

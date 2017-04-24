@@ -1,6 +1,5 @@
 'use strict';
 
-const recordUtils = require('./generate_record');
 const makeSyncBody = require('./fixtures/makeSyncBody');
 const sync = require('./sync');
 const Promise = require('bluebird');

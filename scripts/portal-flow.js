@@ -59,7 +59,7 @@ module.exports = function portalFlow(runner, argv, clientId) {
         const pending = [recordUtils.generateRecord(workflow, null, {}, 'create')];
         const payload = makeSyncBody('workflows', clientId, hashes.workflows, {}, pending, []);
         return create('workflows', hashes.workflows, payload, {}, [])
-          .then(res => doAcknowledge('workflows', clientRecs[datasets.indexOf('workflows')], res, pending[0].hash));
+          .then(res => doAcknowledge('workflows', clientRecs[datasets.indexOf('workflows')], res));
       })
     ]))
 
@@ -69,14 +69,14 @@ module.exports = function portalFlow(runner, argv, clientId) {
           const pending = [recordUtils.generateRecord(workorder, null, {}, 'create')];
           const payload = makeSyncBody('workorders', clientId, hashes.workorders, {}, pending, []);
           return create('workorders', hashes.workorders, payload, {}, [])
-            .then(res => doAcknowledge('workorders', clientRecs[datasets.indexOf('workorders')], res, pending[0].hash));
+            .then(res => doAcknowledge('workorders', clientRecs[datasets.indexOf('workorders')], res));
         }),
         act('Portal: create message', () => {
           const message = makeMessage(user);
           const pending = [recordUtils.generateRecord(message, null, {}, 'create')];
           const payload = makeSyncBody('messages', clientId, hashes.messages, {}, pending, []);
           return create('messages', hashes.messages, payload, {}, [])
-            .then(res => doAcknowledge('messages', clientRecs[datasets.indexOf('messages')], res, pending[0].hash));
+            .then(res => doAcknowledge('messages', clientRecs[datasets.indexOf('messages')], res));
         })
       ]))
 
