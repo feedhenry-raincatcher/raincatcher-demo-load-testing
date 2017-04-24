@@ -12,6 +12,7 @@ const makeResult = require('../util/fixtures/makeResult');
 const queryParams = require('../util/fixtures/queryParams');
 const acknowledge = require('../util/acknowledge');
 const recordUtils = require('../util/generate_record');
+const getCreatedRecord = require('../util/getCreatedRecord.js');
 
 module.exports = function mobileFlow(runner, argv, clientId) {
   return function mobileFlowAct(sessionToken) {
@@ -27,6 +28,9 @@ module.exports = function mobileFlow(runner, argv, clientId) {
     const doSyncRecords = syncDataset.bind(this, baseUrl, request, clientId);
     const doAcknowledge = acknowledge.bind(this, doSync, doSyncRecords, makeSyncBody, baseUrl, clientId, datasets);
     const act = promiseAct.bind(this, runner);
+
+    // Version of doSyncRecords that just requires clientRecs. Passed to getCreatedRecord
+    const resultSyncRecords = _.partialRight(doSyncRecords.bind(this, 'result'), {});
 
     const syncPromise = request.get({url: `${baseUrl}/api/wfm/user`})
           .then(users => _.find(users, {username: `loaduser${process.env.LR_RUN_NUMBER}`}))
@@ -67,27 +71,34 @@ module.exports = function mobileFlow(runner, argv, clientId) {
             const pending = [recordUtils.generateRecord(result, null, {}, 'create')];
             const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id), pending, []);
             return create('result', hashes.result, payload, queryParams(user.id).result, [])
-              .then(res => doAcknowledge('result', clientRecs[datasets.indexOf('result')].clientRecs, res, pending[0].hash));
+              .then(res => getCreatedRecord(resultSyncRecords, res, clientRecs[datasets.indexOf('result')].clientRecs, pending[0].hash)
+                    .then(createdRecord => Promise.all([
+                      Promise.resolve(createdRecord),
+                      doAcknowledge('result', clientRecs[datasets.indexOf('result')].clientRecs, res)])
+              ));
           })
 
-          .spread((syncResponse, createdRecord, resultDatasetClientRecs) => act(
+          .spread((createdRecord, resultDatasetClientRecs) => act(
             'Device: sync In Progress result',
             () => {
               const result = makeResult.updateInProgress(createdRecord.data.id, user.id, myWorkorderId);
               const pending = [recordUtils.generateRecord(result, createdRecord, {}, 'update')];
               const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id), pending, []);
               return create('result', hashes.result, payload, queryParams(user.id).result, [])
-                .then(res => doAcknowledge('result', resultDatasetClientRecs, res, pending[0].hash));
+                .then(res => getCreatedRecord(resultSyncRecords, res, resultDatasetClientRecs, pending[0].hash)
+                      .then(createdRecord => Promise.all([
+                        Promise.resolve(createdRecord),
+                        doAcknowledge('result', resultDatasetClientRecs, res)])));
             }))
 
-          .spread((syncResponse, updatedRecord, resultDatasetClientRecs) => act(
+          .spread((updatedRecord, resultDatasetClientRecs) => act(
             'Device: sync Complete result',
             () => {
               const result = makeResult.updateComplete(updatedRecord.data.id, user.id, myWorkorderId);
               const pending = [recordUtils.generateRecord(result, updatedRecord, {}, 'update')];
               const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id), pending, []);
               return create('result', hashes.result, payload, queryParams(user.id).result, [], 'update')
-                .then(res => doAcknowledge('result', resultDatasetClientRecs, res, pending[0].hash));
+                .then(res => doAcknowledge('result', resultDatasetClientRecs, res));
             })))
       .then(() => runner.actEnd('Mobile Flow'))
       .then(() => sessionToken);
