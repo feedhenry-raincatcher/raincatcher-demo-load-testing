@@ -69,7 +69,7 @@ module.exports = function mobileFlow(runner, argv, clientId) {
           () => {
             const result = makeResult.createNew();
             const pending = [recordUtils.generateRecord(result, null, {}, 'create')];
-            const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id), pending, []);
+            const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id).result, pending, []);
             return create('result', hashes.result, payload, queryParams(user.id).result, [])
               .then(res => getCreatedRecord(resultSyncRecords, res, clientRecs[datasets.indexOf('result')].clientRecs, pending[0].hash)
                     .then(createdRecord => Promise.all([
@@ -83,7 +83,7 @@ module.exports = function mobileFlow(runner, argv, clientId) {
             () => {
               const result = makeResult.updateInProgress(createdRecord.data.id, user.id, myWorkorderId);
               const pending = [recordUtils.generateRecord(result, createdRecord, {}, 'update')];
-              const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id), pending, []);
+              const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id).result, pending, []);
               return create('result', hashes.result, payload, queryParams(user.id).result, [])
                 .then(res => getCreatedRecord(resultSyncRecords, res, resultDatasetClientRecs, pending[0].hash)
                       .then(createdRecord => Promise.all([
@@ -96,7 +96,7 @@ module.exports = function mobileFlow(runner, argv, clientId) {
             () => {
               const result = makeResult.updateComplete(updatedRecord.data.id, user.id, myWorkorderId);
               const pending = [recordUtils.generateRecord(result, updatedRecord, {}, 'update')];
-              const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id), pending, []);
+              const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id).result, pending, []);
               return create('result', hashes.result, payload, queryParams(user.id).result, [], 'update')
                 .then(res => doAcknowledge('result', resultDatasetClientRecs, res));
             })))
