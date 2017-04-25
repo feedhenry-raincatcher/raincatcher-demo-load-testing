@@ -11,6 +11,7 @@ const makeUser = require('../util/fixtures/makeUser');
 const makeWorkorder = require('../util/fixtures/makeWorkorder');
 const createUserAndGroup = require('../util/createUserAndGroup');
 const syncDataset = require('../util/syncDataset');
+const getCreatedRecord = require('../util/getCreatedRecord.js');
 
 const argv = require('../util/yargopts')
   .option('numUsers', {
@@ -26,6 +27,15 @@ const argv = require('../util/yargopts')
     describe: 'The concurrency at which to create resources'
   })
   .argv;
+
+/**
+ * Compare function to be used with getCreatedRecord.
+ * Searches syncRecords responses for a record with the correct title.
+ */
+function findRecordByTitle(expectedTitle, syncResponse, syncRecordsResponse) {
+  const newAndUpdated = _.merge(_.get(syncRecordsResponse, 'res.create', {}));
+  return _.find(newAndUpdated, o => o.data.title === expectedTitle);
+}
 
 function postUsers(sessionToken, numUsers, concurrency) {
   const users = _.range(1, numUsers + 1).map(makeUser);
@@ -64,13 +74,12 @@ function syncSingleDataset(rp, dataset) {
 function initialSync(previousResolution) {
   const sessionRequest = previousResolution.sessionRequest;
   const users = previousResolution.users;
+  const doSyncRecords = _.partialRight(syncDataset.bind(this, argv.app, sessionRequest, '1234', 'workflows'), {});
 
   return new Promise(resolve => Promise.join(
     syncSingleDataset(sessionRequest, 'workorders'),
     syncSingleDataset(sessionRequest, 'workflows')
-      .then(() => syncDataset(argv.app, sessionRequest, '1234', 'workflows'))
-      .then(r => _.find(r.res.create, x => x.data.title === 'Static forms').data.id),
-
+    .then(res => getCreatedRecord(doSyncRecords, res, [], findRecordByTitle.bind(this, 'Static forms'))),
     (workordersRes, workflowId) => {
       const resolution = {
         users: users,

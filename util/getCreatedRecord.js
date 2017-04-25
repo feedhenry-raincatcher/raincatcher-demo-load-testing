@@ -3,20 +3,13 @@
 const _ = require('lodash');
 const Promise = require('bluebird');
 
-function getCreatedRecord(expectedHash, syncResponse, syncRecordsResponse) {
-  const newAndUpdated = _.merge(_.get(syncRecordsResponse, 'res.create', {}),
-                                _.get(syncRecordsResponse, 'res.update', {}));
-  const expectedUid = _.get(_.find(syncResponse.updates.applied, {'hash': expectedHash}), 'uid');
-  return _.find(newAndUpdated, r => r.data.id === expectedUid);
-}
-
-function getCreatedRecordSyncLoop(syncRecordsFn, interval, timeout, initialSyncResult, initialClientRecs, expectedHash) {
+function getCreatedRecordSyncLoop(syncRecordsFn, interval, timeout, initialSyncResult, initialClientRecs, compareFn) {
   return new Promise(resolve => {
 
     function next(previousResult, clientRecs) {
       return syncRecordsFn(clientRecs)
           .then(syncRecordsResponse => {
-            const record = getCreatedRecord(expectedHash, previousResult, syncRecordsResponse);
+            const record = compareFn(previousResult, syncRecordsResponse);
             if (record) {
               return resolve(record);
             } else {
@@ -31,6 +24,6 @@ function getCreatedRecordSyncLoop(syncRecordsFn, interval, timeout, initialSyncR
     .timeout(timeout);
 }
 
-module.exports = function(syncRecordsFn, syncResult, clientRecs, expectedHash) {
-  return getCreatedRecordSyncLoop(syncRecordsFn, 5000, 300000, syncResult, clientRecs, expectedHash);
+module.exports = function(syncRecordsFn, syncResult, clientRecs, compareFn) {
+  return getCreatedRecordSyncLoop(syncRecordsFn, 5000, 300000, syncResult, clientRecs, compareFn);
 };
