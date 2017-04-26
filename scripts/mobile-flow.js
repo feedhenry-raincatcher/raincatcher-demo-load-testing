@@ -59,7 +59,6 @@ module.exports = function mobileFlow(runner, argv, clientId) {
               ]))
             // Then do another syncRecords, this time with clientRecs
               .spread((syncResults, clientRecs) => Promise.all([
-                // TODO: in the browser, I see a hash in the response from syncRecords, but not here in the script
                 Promise.resolve(_.zipObject(datasets, syncResults.map(x => x.hash))),
                 Promise.all(datasets.map(ds => doSyncRecords(ds, clientRecs[datasets.indexOf(ds)], queryParams(user.id)[ds]))),
                 Promise.resolve(user)
