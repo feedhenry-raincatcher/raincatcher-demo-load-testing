@@ -14,6 +14,17 @@ const acknowledge = require('../util/acknowledge');
 const recordUtils = require('../util/generate_record');
 const getCreatedRecord = require('../util/getCreatedRecord.js');
 
+/**
+ * Compare function to be used with getCreatedRecord.
+ * Searches for a record from a syncResponse in a syncRecords response.
+ */
+function findRecordByHash(expectedHash, syncResponse, syncRecordsResponse) {
+  const newAndUpdated = _.merge(_.get(syncRecordsResponse, 'res.create', {}),
+                                _.get(syncRecordsResponse, 'res.update', {}));
+  const expectedUid = _.get(_.find(syncResponse.updates.applied, {'hash': expectedHash}), 'uid');
+  return _.find(newAndUpdated, r => r.data.id === expectedUid);
+}
+
 module.exports = function mobileFlow(runner, argv, clientId) {
   return function mobileFlowAct(sessionToken) {
     runner.actStart('Mobile Flow');
@@ -69,9 +80,9 @@ module.exports = function mobileFlow(runner, argv, clientId) {
           () => {
             const result = makeResult.createNew();
             const pending = [recordUtils.generateRecord(result, null, {}, 'create')];
-            const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id), pending, []);
+            const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id).result, pending, []);
             return create('result', hashes.result, payload, queryParams(user.id).result, [])
-              .then(res => getCreatedRecord(resultSyncRecords, res, clientRecs[datasets.indexOf('result')].clientRecs, pending[0].hash)
+              .then(res => getCreatedRecord(resultSyncRecords, res, clientRecs[datasets.indexOf('result')].clientRecs, findRecordByHash.bind(this, pending[0].hash))
                     .then(createdRecord => Promise.all([
                       Promise.resolve(createdRecord),
                       doAcknowledge('result', clientRecs[datasets.indexOf('result')].clientRecs, res)])
@@ -83,9 +94,9 @@ module.exports = function mobileFlow(runner, argv, clientId) {
             () => {
               const result = makeResult.updateInProgress(createdRecord.data.id, user.id, myWorkorderId);
               const pending = [recordUtils.generateRecord(result, createdRecord, {}, 'update')];
-              const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id), pending, []);
+              const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id).result, pending, []);
               return create('result', hashes.result, payload, queryParams(user.id).result, [])
-                .then(res => getCreatedRecord(resultSyncRecords, res, resultDatasetClientRecs, pending[0].hash)
+                .then(res => getCreatedRecord(resultSyncRecords, res, resultDatasetClientRecs, findRecordByHash.bind(this, pending[0].hash))
                       .then(createdRecord => Promise.all([
                         Promise.resolve(createdRecord),
                         doAcknowledge('result', resultDatasetClientRecs, res)])));
@@ -96,7 +107,7 @@ module.exports = function mobileFlow(runner, argv, clientId) {
             () => {
               const result = makeResult.updateComplete(updatedRecord.data.id, user.id, myWorkorderId);
               const pending = [recordUtils.generateRecord(result, updatedRecord, {}, 'update')];
-              const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id), pending, []);
+              const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id).result, pending, []);
               return create('result', hashes.result, payload, queryParams(user.id).result, [], 'update')
                 .then(res => doAcknowledge('result', resultDatasetClientRecs, res));
             })))
