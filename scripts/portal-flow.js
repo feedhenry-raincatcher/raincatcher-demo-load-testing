@@ -64,6 +64,9 @@ module.exports = function portalFlow(runner, argv, clientId) {
 
       .spread((hashes, clientRecs, user, workflowCreationResult) => Promise.all([
         act('Portal: create workorder', () => {
+          if (!user) {
+            console.error('IN PORTAL FLOW, USER EMPTY');
+          }
           const workorder = makeWorkorder(String(user.id), String(_.get(workflowCreationResult[1], 'data.id', process.env.LR_RUN_NUMBER)));
           const pending = [recordUtils.generateRecord(workorder, null, {}, 'create')];
           const payload = makeSyncBody('workorders', clientId, hashes.workorders, {}, pending, []);

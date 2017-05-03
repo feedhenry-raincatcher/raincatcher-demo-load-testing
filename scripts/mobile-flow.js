@@ -44,7 +44,17 @@ module.exports = function mobileFlow(runner, argv, clientId) {
     const resultSyncRecords = _.partialRight(doSyncRecords.bind(this, 'result'), {});
 
     const syncPromise = request.get({url: `${baseUrl}/api/wfm/user`})
+          .then(users => {
+            console.log(_.size(users));
+            return users;
+          })
           .then(users => _.find(users, {username: `loaduser${process.env.LR_RUN_NUMBER}`}))
+          .then(user => {
+            if (!user) {
+              throw new Error('User doesnt exist going into dance');
+            }
+            return user;
+          })
           .then(user => act(
             'Initial sync and syncRecords dance',
             // First do a sync of each dataset
@@ -91,6 +101,9 @@ module.exports = function mobileFlow(runner, argv, clientId) {
           .spread((createdRecord, resultDatasetClientRecs) => act(
             'Device: sync In Progress result',
             () => {
+              if (!createdRecord) {
+                throw new Error('Created record doesnt exist in progress result');
+              }
               const result = makeResult.updateInProgress(createdRecord.data.id, user.id, myWorkorderId);
               const pending = [recordUtils.generateRecord(result, createdRecord, {}, 'update')];
               const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id).result, pending, []);
@@ -104,6 +117,9 @@ module.exports = function mobileFlow(runner, argv, clientId) {
           .spread((updatedRecord, resultDatasetClientRecs) => act(
             'Device: sync Complete result',
             () => {
+              if (!updatedRecord) {
+                throw new Error('Updated record doesnt exist in complete result');
+              }
               const result = makeResult.updateComplete(updatedRecord.data.id, user.id, myWorkorderId);
               const pending = [recordUtils.generateRecord(result, updatedRecord, {}, 'update')];
               const payload = makeSyncBody('result', clientId, hashes.result, queryParams(user.id).result, pending, []);

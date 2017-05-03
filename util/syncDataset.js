@@ -3,6 +3,10 @@
 const _ = require('lodash');
 
 function getUpdatedClientRecs(inRecs, syncRecordsResponse) {
+
+  _.forEach(syncRecordsResponse.create, x => !x.data ? console.error(`getCreatedclientrecs: ${JSON.stringify(x)}`) : null);
+  _.forEach(syncRecordsResponse.update, x => !x.data ? console.error(`getUpdatedclientrecs: ${JSON.stringify(x)}`) : null);
+
   const deletedRecs = _.keys(syncRecordsResponse.delete);
   const createdRecs = _.transform(_.filter(syncRecordsResponse.create, rec => rec.data.id), (acc, rec) => acc[rec.data.id] = rec.hash, {});
   const updatedRecs = _.transform(_.filter(syncRecordsResponse.update, rec => rec.data.id), (acc, rec) => acc[rec.data.id] = rec.hash, {});
