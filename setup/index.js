@@ -2,5 +2,12 @@
 'use strict';
 const usersWorkorders = require('./usersWorkorders');
 const dataReset = require('./dataReset');
+const login  = require('./login');
+const yargopts = require('../util/yargopts');
 
-dataReset().then(usersWorkorders);
+
+login().then(token => {
+  dataReset(token, yargopts.argv);
+}).then(usersWorkorders);
+
+

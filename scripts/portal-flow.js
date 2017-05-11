@@ -9,7 +9,6 @@ const createRecord = require('../util/createRecord');
 const makeUser = require('../util/fixtures/makeUser');
 const makeWorkorder = require('../util/fixtures/makeWorkorder');
 const makeWorkflow = require('../util/fixtures/makeWorkflow');
-const makeMessage = require('../util/fixtures/makeMessage');
 const makeSyncBody = require('../util/fixtures/makeSyncBody');
 const createUserAndGroup = require('../util/createUserAndGroup');
 const promiseAct = require('../util/promiseAct');
@@ -22,7 +21,7 @@ module.exports = function portalFlow(runner, argv, clientId) {
 
     const baseUrl = argv.app;
     const request = configureRequest(clientId, sessionToken);
-    const datasets = ['workorders', 'workflows', 'messages', 'result'];
+    const datasets = ['workorders', 'workflows', 'result'];
 
     // partially apply constant params so further calls are cleaner
     const create = createRecord.bind(this, baseUrl, request, clientId);
@@ -69,13 +68,6 @@ module.exports = function portalFlow(runner, argv, clientId) {
           const payload = makeSyncBody('workorders', clientId, hashes.workorders, {}, pending, []);
           return create('workorders', hashes.workorders, payload, {}, [])
             .then(res => doAcknowledge('workorders', clientRecs[datasets.indexOf('workorders')], res));
-        }),
-        act('Portal: create message', () => {
-          const message = makeMessage(user);
-          const pending = [recordUtils.generateRecord(message, null, {}, 'create')];
-          const payload = makeSyncBody('messages', clientId, hashes.messages, {}, pending, []);
-          return create('messages', hashes.messages, payload, {}, [])
-            .then(res => doAcknowledge('messages', clientRecs[datasets.indexOf('messages')], res));
         })
       ]))
 
