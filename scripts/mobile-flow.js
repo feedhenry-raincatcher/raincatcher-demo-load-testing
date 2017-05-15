@@ -31,7 +31,7 @@ module.exports = function mobileFlow(runner, argv, clientId) {
 
     const baseUrl = argv.app;
     const request = configureRequest(clientId, sessionToken);
-    const datasets = ['workorders', 'workflows', 'messages', 'result'];
+    const datasets = ['workorders', 'workflows', 'result'];
 
     // partially apply constant params so further calls are cleaner
     const create = createRecord.bind(this, baseUrl, request, clientId);

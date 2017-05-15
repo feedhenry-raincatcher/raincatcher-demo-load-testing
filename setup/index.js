@@ -2,5 +2,9 @@
 'use strict';
 const usersWorkorders = require('./usersWorkorders');
 const dataReset = require('./dataReset');
+const login  = require('./login');
 
-dataReset().then(usersWorkorders);
+
+login().then(dataReset).then(usersWorkorders);
+
+
